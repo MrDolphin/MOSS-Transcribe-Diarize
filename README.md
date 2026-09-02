@@ -42,6 +42,7 @@ MOSS-Transcribe-Diarize 0.9B supports 50+ languages.
   - [Python Usage](#python-usage)
   - [Serve with SGLang Omni](#serve-with-sglang-omni)
   - [Serve with vLLM](#serve-with-vllm)
+  - [Use in the FunASR Ecosystem](#use-in-the-funasr-ecosystem)
   - [Custom Prompt and Hotwords](#custom-prompt-and-hotwords)
   - [Subtitle Web App](#subtitle-web-app)
 - [Citation](#citation)
@@ -363,6 +364,49 @@ curl http://localhost:8000/v1/audio/transcriptions \
   -F response_format="json" \
   -F temperature="0"
 ```
+
+### Use in the FunASR Ecosystem
+
+[FunASR](https://github.com/modelscope/FunASR) maintains a production-oriented
+deployment guide for this third-party OpenMOSS model across vLLM, SGLang Omni,
+and Transformers. Because MOSS-Transcribe-Diarize produces transcription,
+timestamps, and speaker labels in one pass, applications do not need to attach
+separate external VAD or speaker-diarization models.
+
+FunASR 1.4.12 or newer can normalize an existing vLLM service's official
+speaker-attributed response into the common `sentence_info` contract:
+
+```bash
+pip install "funasr>=1.4.12"
+```
+
+```python
+from funasr import AutoModel
+
+model = AutoModel(
+    model="OpenMOSS-Team/MOSS-Transcribe-Diarize",
+    backend="vllm",
+    vllm_base_url="http://127.0.0.1:8898/v1",
+    vllm_model="moss-transcribe-diarize",
+    vllm_response_format="diarized_json",
+    disable_update=True,
+)
+result = model.generate("audio.wav", max_completion_tokens=8192)[0]
+for segment in result["sentence_info"]:
+    print(segment["start"], segment["end"], segment["spk"], segment["text"])
+```
+
+The guide pins the model and serving revisions, documents the response contract
+of each backend, and includes an H100-verified vLLM smoke test. It also explains
+the boundary between deployment issues handled in the FunASR ecosystem and
+model or weight issues that belong in this repository:
+
+- [FunASR deployment guide](https://github.com/modelscope/FunASR/blob/main/docs/moss_transcribe_diarize.md)
+- [FunASR production deployment page](https://www.funasr.com/en/deploy/moss-transcribe-diarize.html)
+- [FunClip 2.2.1: speaker-aware SRT and per-speaker clip export](https://github.com/modelscope/FunClip/releases/tag/v2.2.1)
+
+MOSS-Transcribe-Diarize remains an OpenMOSS model under Apache-2.0; the FunASR
+integration is an ecosystem deployment path, not a transfer of model ownership.
 
 ### Custom Prompt and Hotwords
 
